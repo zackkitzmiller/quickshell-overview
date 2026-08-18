@@ -24,21 +24,52 @@ Item {
 
     readonly property real iconSize: style === "hybrid" ? tileSize * 0.42 : tileSize * 0.66
 
+    // Selection color, cycled per position through the configured palette
+    // (orange, green, blue, black by default) — the bar's multicolor pill look.
+    readonly property var highlightColors: Config.options.switcher.highlightColors
+    readonly property color highlightColor: (highlightColors && highlightColors.length > 0)
+        ? highlightColors[root.index % highlightColors.length]
+        : OmarchyTheme.foreground
+
+    // Offset of the selected tile's hard drop shadow. Kept below the row's
+    // tileSpacing so a selected tile's shadow never touches its neighbor.
+    property int tileShadowOffset: 6
+
     implicitWidth: tileSize
     implicitHeight: tileSize
 
-    // Tile background + selection highlight.
+    // Hard neobrutalist drop shadow for the SELECTED tile, in its highlight
+    // color — the same chunky treatment the panel gets, so selection reads as
+    // solid and offset rather than a thin outline. Declared first (paints
+    // behind the tile); spills into the row gap / panel padding.
+    Rectangle {
+        id: tileShadow
+        visible: root.selected
+        x: root.tileShadowOffset
+        y: root.tileShadowOffset
+        width: parent.width
+        height: parent.height
+        radius: 10
+        color: root.highlightColor
+    }
+
+    // Tile background + selection highlight (neobrutalist: highlight-washed fill
+    // under a chunky highlight-colored border when selected; a faint inset wash
+    // otherwise, so tiles read against the cream panel).
     Rectangle {
         id: background
         anchors.fill: parent
-        radius: Appearance.rounding.normal
+        radius: 10
         color: root.selected
-            ? ColorUtils.applyAlpha(Appearance.colors.colSecondaryContainer, 0.95)
-            : ColorUtils.applyAlpha(Appearance.colors.colLayer1, 0.55)
+            ? ColorUtils.applyAlpha(root.highlightColor, 0.20)
+            : ColorUtils.applyAlpha(OmarchyTheme.foreground, 0.06)
         border.width: 2
-        border.color: root.selected ? Appearance.colors.colSecondary : "transparent"
+        border.color: root.selected ? root.highlightColor : "transparent"
 
         Behavior on color {
+            ColorAnimation { duration: Appearance.animation.elementMoveFast.duration }
+        }
+        Behavior on border.color {
             ColorAnimation { duration: Appearance.animation.elementMoveFast.duration }
         }
     }
@@ -75,12 +106,12 @@ Item {
         width: badgeText.implicitWidth + 8
         height: badgeText.implicitHeight + 4
         radius: height / 2
-        color: ColorUtils.applyAlpha(Appearance.colors.colSecondaryContainer, 0.95)
+        color: OmarchyTheme.accent
         Text {
             id: badgeText
             anchors.centerIn: parent
             text: `${root.entry?.windowCount ?? 1}`
-            color: Appearance.colors.colOnSecondaryContainer
+            color: OmarchyTheme.background
             font.pixelSize: Appearance.font.pixelSize.smaller
             font.family: Appearance.font.family.main
         }

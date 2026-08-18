@@ -72,22 +72,23 @@ Then add the keybinds and auto-start to your Hyprland config (see Setup below).
 
 2. **Add keybinds** to your Hyprland config.
 
-   The switcher uses a single "open" keybind per direction; once it is
-   showing, it grabs the keyboard itself and handles further Tab / Shift+Tab
-   / Escape presses and the Super release.
+   Hyprland drives the cycling. Each `Tab` / `Shift+Tab` calls the `next` /
+   `prev` IPC (which opens the switcher on the first press), because Hyprland
+   mod-binds fire *through* the switcher's keyboard grab. The surface itself
+   only handles the **Super release** (confirm + focus) and mouse.
 
    *For Hyprland 0.55+ (`~/.config/hypr/hyprland.lua`):*
    ```lua
-   -- Open forward (hold Super, tap Tab to keep cycling)
-   hl.bind("SUPER + TAB", hl.dsp.exec_cmd("qs ipc -c overview call overview open"))
-   -- Open backward (hold Super+Shift, tap Tab to keep cycling)
+   -- Open + cycle forward (hold Super, tap Tab to keep advancing)
+   hl.bind("SUPER + TAB", hl.dsp.exec_cmd("qs ipc -c overview call overview next"))
+   -- Open + cycle backward (hold Super+Shift, tap Tab)
    hl.bind("SUPER + SHIFT + TAB", hl.dsp.exec_cmd("qs ipc -c overview call overview prev"))
    ```
    *For Hyprland 0.54 and older (`~/.config/hypr/hyprland.conf`):*
    ```conf
-   # Open forward (hold Super, tap Tab to keep cycling)
-   bind = SUPER, Tab, exec, qs ipc -c overview call overview open
-   # Open backward (hold Super+Shift, tap Tab to keep cycling)
+   # Open + cycle forward (hold Super, tap Tab to keep advancing)
+   bind = SUPER, Tab, exec, qs ipc -c overview call overview next
+   # Open + cycle backward (hold Super+Shift, tap Tab)
    bind = SUPER SHIFT, Tab, exec, qs ipc -c overview call overview prev
    ```
 
@@ -111,14 +112,15 @@ Then add the keybinds and auto-start to your Hyprland config (see Setup below).
 
 ### How the keybind works (and the fast-tap edge case)
 
-The switcher follows the "single keybind + keyboard grab" model:
+The switcher splits responsibilities between Hyprland and its own surface:
 
-1. `Super + Tab` runs one IPC command that opens the switcher.
-2. The switcher's layer surface takes an **exclusive keyboard grab** the
-   instant it maps, so every subsequent `Tab` (forward), `Shift + Tab`
-   (backward), `Escape` (cancel), and the eventual **Super release**
-   (confirm + focus) is handled inside the switcher — no extra keybinds
-   needed.
+1. `Super + Tab` calls the `next` IPC, which opens the switcher on the
+   first press and advances the selection on every press after that.
+2. Cycling is driven by the Hyprland binds, **not** the surface: Hyprland
+   mod-binds fire through the layer surface's keyboard grab, so each
+   `Tab` / `Shift + Tab` reaches `next` / `prev`.
+3. The surface's **exclusive keyboard grab** handles what has no bind — the
+   **Super release** (confirm + focus) and clicks/hover on tiles.
 
 **Edge case — very fast tap-and-release:** if you tap `Super + Tab` and
 release Super *extremely* quickly, the release can out-race the surface
@@ -135,6 +137,37 @@ hl.bindr("SUPER", "SUPER_L", hl.dsp.exec_cmd("qs ipc -c overview call overview c
 ```conf
 bindr = SUPER, Super_L, exec, qs ipc -c overview call overview confirm
 ```
+
+### Cancelling with Escape
+
+The natural "cancel" gesture — keep Super held, tap `Escape` — needs a bind,
+**not** the surface's grab. Hyprland mod-binds *consume* the key before the
+grab can see it, so if `Super + Escape` is already bound (Omarchy, for
+example, maps it to its system menu), that action fires instead of
+cancelling — and the switcher's own `Escape` handler never runs.
+
+The fix is a guarded `Super + Escape` bind that cancels the switcher when
+it's open and otherwise does whatever you had before. The `dismiss` IPC
+prints `handled` only while the switcher is up, so the shell can fall
+through when it isn't:
+
+*Hyprland 0.55+ (`hyprland.lua`):*
+```lua
+-- If your Super+Escape was already bound, unbind it first — Hyprland stacks
+-- duplicate binds, so both would otherwise fire.
+hl.unbind("SUPER + ESCAPE")
+hl.bind("SUPER + ESCAPE", hl.dsp.exec_cmd(
+	'[ "$(qs ipc -c overview call overview dismiss 2>/dev/null)" = handled ] || omarchy-menu toggle system'))
+```
+*Hyprland 0.54 and older (`hyprland.conf`):*
+```conf
+# Replace `omarchy-menu toggle system` with your previous Super+Escape action
+# (drop the `|| ...` entirely if Super+Escape was unbound).
+bind = SUPER, Escape, exec, [ "$(qs ipc -c overview call overview dismiss 2>/dev/null)" = handled ] || omarchy-menu toggle system
+```
+
+If `Super + Escape` was free, you can skip the fallback and just bind it to
+`qs ipc -c overview call overview close`.
 
 ### Manual Start (if needed)
 
