@@ -77,8 +77,17 @@ Then add the keybinds and auto-start to your Hyprland config (see Setup below).
    mod-binds fire *through* the switcher's keyboard grab. The surface itself
    only handles the **Super release** (confirm + focus) and mouse.
 
+   > **Watch for an existing `Super+Shift+Tab` bind.** Many setups (Omarchy,
+   > for one) already map `Super+Shift+Tab` to "previous workspace". Hyprland
+   > **stacks** duplicate binds, so without unbinding it first the backward tap
+   > both cycles the switcher *and* switches workspace. Unbind any conflicting
+   > default before binding the switcher.
+
    *For Hyprland 0.55+ (`~/.config/hypr/hyprland.lua`):*
    ```lua
+   -- Clear conflicting defaults first (Hyprland stacks binds).
+   hl.unbind("SUPER + TAB")
+   hl.unbind("SUPER + SHIFT + TAB")
    -- Open + cycle forward (hold Super, tap Tab to keep advancing)
    hl.bind("SUPER + TAB", hl.dsp.exec_cmd("qs ipc -c overview call overview next"))
    -- Open + cycle backward (hold Super+Shift, tap Tab)
@@ -86,6 +95,8 @@ Then add the keybinds and auto-start to your Hyprland config (see Setup below).
    ```
    *For Hyprland 0.54 and older (`~/.config/hypr/hyprland.conf`):*
    ```conf
+   # If your config already binds Super+Shift+Tab (e.g. to a workspace),
+   # remove or comment out that line so it doesn't fire alongside the switcher.
    # Open + cycle forward (hold Super, tap Tab to keep advancing)
    bind = SUPER, Tab, exec, qs ipc -c overview call overview next
    # Open + cycle backward (hold Super+Shift, tap Tab)
