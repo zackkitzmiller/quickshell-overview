@@ -141,13 +141,13 @@ Scope {
         }
         function next() {
             if (!Switcher.open)
-                Switcher.openSwitcher();
+                Switcher.openSwitcher(false);
             else
                 Switcher.next();
         }
         function prev() {
             if (!Switcher.open)
-                Switcher.openSwitcher();
+                Switcher.openSwitcher(true);
             else
                 Switcher.prev();
         }

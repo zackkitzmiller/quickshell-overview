@@ -86,7 +86,7 @@ Singleton {
         return Quickshell.iconPath(name, "image-missing");
     }
 
-    function openSwitcher() {
+    function openSwitcher(backward) {
         // Provisional pin: the focused monitor, so the keyboard grab can fire
         // instantly (a delayed grab misses a fast SUPER release). Guaranteed
         // to be a real id — never -1 — so the panel can't fall into the
@@ -97,8 +97,13 @@ Singleton {
         root.displayMonitorId = Hyprland.focusedMonitor?.id
             ?? (Hyprland.monitors?.values?.[0]?.id ?? 0);
         root.open = true;
-        // Mirror macOS: first tap lands on the previous app.
-        root.selectedIndex = root.entries.length > 1 ? 1 : 0;
+        // Mirror macOS: opening forward lands on the previous app (second
+        // entry); opening backward wraps to the last app in the list.
+        const n = root.entries.length;
+        if (backward)
+            root.selectedIndex = n > 0 ? n - 1 : 0;
+        else
+            root.selectedIndex = n > 1 ? 1 : 0;
         // Correct the pin to the monitor the cursor is actually on.
         cursorPosProc.running = true;
     }
