@@ -578,12 +578,10 @@ The switcher reads the active palette from `caelestia scheme get` and refreshes 
 │   ├── functions/
 │   │   └── ColorUtils.qml         # Color manipulation utilities
 │   └── widgets/
-│       ├── StyledText.qml         # Styled text component
-│       ├── StyledRectangularShadow.qml
-│       ├── StyledToolTip.qml
-│       └── StyledToolTipContent.qml
+│       └── StyledText.qml         # Styled text component
 ├── services/
 │   ├── Switcher.qml               # Switcher state + logic (singleton)
+│   ├── OmarchyTheme.qml           # Live Omarchy theme-color reader (singleton)
 │   └── HyprlandData.qml           # Hyprland data provider
 └── modules/
     └── switcher/
