@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../common"
@@ -85,12 +86,64 @@ Singleton {
         return Quickshell.iconPath(name, "image-missing");
     }
 
-    function openSwitcher() {
-        // Pin to the monitor focused at open time (don't let it hop later).
-        root.displayMonitorId = Hyprland.focusedMonitor?.id ?? -1;
+    function openSwitcher(backward) {
+        // Provisional pin: the focused monitor, so the keyboard grab can fire
+        // instantly (a delayed grab misses a fast SUPER release). Guaranteed
+        // to be a real id — never -1 — so the panel can't fall into the
+        // live-tracking path in WindowSwitcher and hop displays. Refined to
+        // the cursor's monitor as soon as the async cursorpos query returns
+        // (focusedMonitor can diverge from the cursor when a window on the
+        // other display steals focus without the cursor moving).
+        root.displayMonitorId = Hyprland.focusedMonitor?.id
+            ?? (Hyprland.monitors?.values?.[0]?.id ?? 0);
         root.open = true;
-        // Mirror macOS: first tap lands on the previous app.
-        root.selectedIndex = root.entries.length > 1 ? 1 : 0;
+        // Mirror macOS: opening forward lands on the previous app (second
+        // entry); opening backward wraps to the last app in the list.
+        const n = root.entries.length;
+        if (backward)
+            root.selectedIndex = n > 0 ? n - 1 : 0;
+        else
+            root.selectedIndex = n > 1 ? 1 : 0;
+        // Correct the pin to the monitor the cursor is actually on.
+        cursorPosProc.running = true;
+    }
+
+    // Which monitor's logical rect contains the given cursor point, or -1.
+    // hyprctl reports x/y in logical coords but width/height in physical
+    // pixels, so the logical extent is width/scale x height/scale.
+    function monitorIdAt(cx, cy) {
+        const mons = Hyprland.monitors?.values ?? [];
+        for (const mon of mons) {
+            const o = mon?.lastIpcObject ?? mon;
+            if (o?.width === undefined || o?.height === undefined)
+                continue;
+            const scale = (o.scale && o.scale > 0) ? o.scale : 1;
+            const lw = o.width / scale;
+            const lh = o.height / scale;
+            if (cx >= o.x && cx < o.x + lw && cy >= o.y && cy < o.y + lh)
+                return mon.id;
+        }
+        return -1;
+    }
+
+    function applyCursorPos(text) {
+        if (!root.open)
+            return;
+        const m = `${text ?? ""}`.match(/(-?\d+)\s*,\s*(-?\d+)/);
+        if (!m)
+            return;
+        const id = root.monitorIdAt(parseInt(m[1], 10), parseInt(m[2], 10));
+        if (id >= 0)
+            root.displayMonitorId = id;
+    }
+
+    // One-shot cursor position query, fired on every open (see openSwitcher).
+    Process {
+        id: cursorPosProc
+        command: ["hyprctl", "cursorpos"]
+        stdout: StdioCollector {
+            onStreamFinished: root.applyCursorPos(this.text)
+        }
     }
 
     function next() {

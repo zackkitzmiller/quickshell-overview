@@ -1,0 +1,9 @@
+# Personal live config (symlinked config dir)
+config.json
+
+# Tooling
+.rtk/
+
+# Machine-local tooling state (localhost proxy URL, absolute hook paths, perms)
+.claude/settings.local.json
+.claude/.headroom_wrap_marker.json

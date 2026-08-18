@@ -19,11 +19,12 @@ Scope {
             required property var modelData
             readonly property HyprlandMonitor monitor: Hyprland.monitorFor(root.screen)
             // Pinned at open time (see Switcher.displayMonitorId) so the panel
-            // never hops displays mid-session. Falls back to the live focused
-            // monitor only when nothing has been captured yet.
-            readonly property bool monitorIsFocused: Switcher.displayMonitorId >= 0
-                ? (Switcher.displayMonitorId === monitor?.id)
-                : (Hyprland.focusedMonitor?.id === monitor?.id)
+            // never hops displays mid-session. Switcher guarantees a real id at
+            // open, so there is deliberately NO live-tracking fallback here:
+            // chasing Hyprland.focusedMonitor while open was what let the panel
+            // jump to the other display when focus changed under it.
+            readonly property bool isDisplayMonitor: Switcher.displayMonitorId >= 0
+                && Switcher.displayMonitorId === monitor?.id
             property bool blurEnabled: Config.options.switcher.effects.enableBlur
             property bool backdropEnabled: Config.options.switcher.effects.enableBackdrop
             property real backdropOpacity: Math.max(0, Math.min(1, Config.options.switcher.effects.backdropOpacity))
@@ -33,7 +34,7 @@ Scope {
             // Only the focused monitor shows the switcher (macOS shows it on
             // the active display); mapping a single surface also makes the
             // keyboard grab unambiguous.
-            visible: Switcher.open && monitorIsFocused
+            visible: Switcher.open && isDisplayMonitor
 
             WlrLayershell.namespace: blurEnabled ? "quickshell:overview-blur" : "quickshell:overview"
             WlrLayershell.layer: WlrLayer.Overlay
@@ -55,15 +56,22 @@ Scope {
             Connections {
                 target: Switcher
                 function onOpenChanged() {
-                    if (Switcher.open && root.monitorIsFocused)
+                    if (Switcher.open && root.isDisplayMonitor)
                         Qt.callLater(() => keyHandler.forceActiveFocus());
                 }
+            }
+
+            // If the cursor-monitor correction moves the pin to this surface
+            // after open, take the keyboard grab here too.
+            onIsDisplayMonitorChanged: {
+                if (Switcher.open && isDisplayMonitor)
+                    Qt.callLater(() => keyHandler.forceActiveFocus());
             }
 
             Item {
                 id: keyHandler
                 anchors.fill: parent
-                focus: Switcher.open && root.monitorIsFocused
+                focus: Switcher.open && root.isDisplayMonitor
 
                 Rectangle {
                     id: backdropLayer
@@ -133,13 +141,13 @@ Scope {
         }
         function next() {
             if (!Switcher.open)
-                Switcher.openSwitcher();
+                Switcher.openSwitcher(false);
             else
                 Switcher.next();
         }
         function prev() {
             if (!Switcher.open)
-                Switcher.openSwitcher();
+                Switcher.openSwitcher(true);
             else
                 Switcher.prev();
         }
@@ -148,6 +156,18 @@ Scope {
         }
         function close() {
             Switcher.cancel();
+        }
+        // Cancel the switcher only if it's open, reporting whether it did.
+        // A Hyprland Super+Escape bind uses the result to decide between
+        // cancelling the switcher and falling through to its normal action
+        // (Hyprland mod-binds consume the key before the surface can see it,
+        // so Escape has to be intercepted at the bind level).
+        function dismiss(): string {
+            if (Switcher.open) {
+                Switcher.cancel();
+                return "handled";
+            }
+            return "";
         }
         function toggle() {
             if (Switcher.open)
