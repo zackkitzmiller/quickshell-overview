@@ -47,6 +47,7 @@
     "tileSize": 96,
     "tileSpacing": 12,
     "showTitle": true,
+    "highlightColors": ["#dc8164", "#556753", "#5e81ac", "#1c2d28"],
     "previewsEnabled": true,
     "previewMode": "live",
     "previewRecaptureDelayMs": 60,

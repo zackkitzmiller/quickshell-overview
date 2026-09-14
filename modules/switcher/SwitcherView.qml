@@ -14,22 +14,40 @@ Item {
     property bool showTitle: Config.options.switcher.showTitle
     property real panelOpacity: Math.max(0, Math.min(1, Config.options.switcher.effects.panelOpacity))
 
-    implicitWidth: background.implicitWidth + Appearance.sizes.elevationMargin * 2
-    implicitHeight: background.implicitHeight + Appearance.sizes.elevationMargin * 2
+    // Neobrutalist "chunky shadow": a solid, unblurred copy of the panel
+    // offset down-right in the theme's dark foreground — the exact technique
+    // the Omarchy top bar uses for its pills, scaled up for a large panel.
+    property int shadowOffset: 10
+    // Chunkier-than-Material corners to sit closer to the bar's pill feel.
+    property int panelRadius: 14
 
-    StyledRectangularShadow {
-        target: background
+    // Reserve room on every side for the offset shadow so it never clips.
+    implicitWidth: background.implicitWidth + root.shadowOffset * 2 + 4
+    implicitHeight: background.implicitHeight + root.shadowOffset * 2 + 4
+
+    // Hard neobrutalist drop shadow: a solid, unblurred copy of the panel
+    // offset down-right in the theme's dark foreground. Declared BEFORE the
+    // panel so it paints behind it (earlier siblings render first), and sized
+    // to track the panel's geometry.
+    Rectangle {
+        id: panelShadow
+        x: background.x + root.shadowOffset
+        y: background.y + root.shadowOffset
+        width: background.width
+        height: background.height
+        radius: background.radius
+        color: OmarchyTheme.foreground
     }
 
     Rectangle {
         id: background
         anchors.centerIn: parent
-        radius: Appearance.rounding.large
+        radius: root.panelRadius
         implicitWidth: contentLayout.implicitWidth + root.padding * 2
         implicitHeight: contentLayout.implicitHeight + root.padding * 2
-        color: ColorUtils.applyAlpha(Appearance.colors.colLayer0, root.panelOpacity)
-        border.width: 1
-        border.color: ColorUtils.applyAlpha(Appearance.colors.colLayer0Border, root.panelOpacity)
+        color: ColorUtils.applyAlpha(OmarchyTheme.background, root.panelOpacity)
+        border.width: 2
+        border.color: OmarchyTheme.foreground
 
         ColumnLayout {
             id: contentLayout
@@ -59,7 +77,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 font.pixelSize: Appearance.font.pixelSize.normal
                 font.family: Appearance.font.family.main
-                color: Appearance.colors.colOnLayer0
+                color: OmarchyTheme.foreground
             }
 
             StyledText {
@@ -68,7 +86,7 @@ Item {
                 text: "No open windows"
                 font.pixelSize: Appearance.font.pixelSize.normal
                 font.family: Appearance.font.family.main
-                color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.4)
+                color: ColorUtils.transparentize(OmarchyTheme.foreground, 0.4)
             }
         }
     }

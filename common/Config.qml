@@ -50,6 +50,16 @@ Singleton {
         return trimmed.length > 0 ? trimmed : fallback;
     }
 
+    function readStringArray(path, fallback) {
+        const value = read(path, fallback);
+        if (!Array.isArray(value))
+            return fallback;
+        const out = value
+            .filter(v => typeof v === "string" && v.trim().length > 0)
+            .map(v => v.trim());
+        return out.length > 0 ? out : fallback;
+    }
+
     property QtObject options: QtObject {
         property QtObject appearance: QtObject {
             property string colorSource: root.readString(
@@ -110,6 +120,11 @@ Singleton {
             property real tileSize: root.readReal("switcher.tileSize", 96)
             property real tileSpacing: root.readReal("switcher.tileSpacing", 12)
             property bool showTitle: root.readBool("switcher.showTitle", true)
+            // Chunky selection-border palette. The selected tile's border (and
+            // a faint matching fill) cycles through these by position — like the
+            // multicolor pills on the bar. Defaults: orange, green, blue, black.
+            property var highlightColors: root.readStringArray("switcher.highlightColors",
+                ["#dc8164", "#556753", "#5e81ac", "#1c2d28"])
             property bool previewsEnabled: root.readBool("switcher.previewsEnabled", true)
             property string previewMode: root.readString("switcher.previewMode", "live")
             property int previewRecaptureDelayMs: root.readInt("switcher.previewRecaptureDelayMs", 60)
